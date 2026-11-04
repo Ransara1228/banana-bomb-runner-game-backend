@@ -1,0 +1,40 @@
+server:
+  port: 8080
+  error:
+    include-message: always
+
+spring:
+  # Java 21: virtual threads for web requests and @Async tasks (the OTP email)
+  threads:
+    virtual:
+      enabled: true
+
+  # MySQL (XAMPP default user is root with no password)
+  datasource:
+    url: jdbc:mysql://localhost:3306/banana_bomb_runner_db
+    username: root
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+  # Email (Gmail: turn on 2-Step Verification and make an App Password)
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: "${MAIL_USER:}"
+    password: "${MAIL_PASS:}"
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+# Our own settings
+app:
+  jwt:
+    # at least 32 characters. Put the real one in the JWT_SECRET environment variable.
+    secret: "${JWT_SECRET:change-this-to-a-long-random-secret-key-123456}"
+  banana:
+    url: https://marcconrad.com/uob/banana/api.php?out=json
