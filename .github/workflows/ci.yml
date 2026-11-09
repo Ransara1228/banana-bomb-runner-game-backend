@@ -1,4 +1,4 @@
-# AI-assisted: Claude (Anthropic), 2026-11-04. Runs the Spock tests on every pull request.
+# AI-assisted: Claude (Anthropic), 2026-11-04.
 name: CI
 on:
   pull_request:
