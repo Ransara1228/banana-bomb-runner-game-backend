@@ -2,6 +2,7 @@ package com.bbr.exception;
 
 import com.bbr.dto.MessageResponse;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -21,5 +22,10 @@ public class GlobalExceptionHandler {
         String field = e.getBindingResult().getFieldErrors().isEmpty()
                 ? "input" : e.getBindingResult().getFieldErrors().get(0).getField();
         return ResponseEntity.badRequest().body(new MessageResponse("Please check the " + field + " field"));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<MessageResponse> badJson(HttpMessageNotReadableException e) {
+        return ResponseEntity.badRequest().body(new MessageResponse("The request body is not valid JSON"));
     }
 }
