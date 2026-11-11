@@ -1,3 +1,4 @@
+# Used for: first version of this file. Change it, test it and make sure you understand it before submitting.
 server:
   port: 8080
   error:
@@ -9,12 +10,13 @@ spring:
     virtual:
       enabled: true
 
-  # MySQL (XAMPP default user is root with no password)
+  # MySQL / MariaDB in XAMPP (user root, no password). The database is made if it is missing.
   datasource:
-    url: jdbc:mysql://localhost:3306/banana_bomb_runner_db
+    url: jdbc:mysql://localhost:3306/banana_bomb_runner_db?createDatabaseIfNotExist=true
     username: root
     password: ""
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: update
 
@@ -36,5 +38,8 @@ app:
   jwt:
     # at least 32 characters. Put the real one in the JWT_SECRET environment variable.
     secret: "${JWT_SECRET:change-this-to-a-long-random-secret-key-123456}"
+  cookie:
+    secure: false          # true when the site runs on HTTPS
   banana:
     url: https://marcconrad.com/uob/banana/api.php?out=json
+    timeout-seconds: 5
