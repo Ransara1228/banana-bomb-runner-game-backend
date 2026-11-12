@@ -6,6 +6,7 @@ package com.bbr.service;
 import com.bbr.dto.LoginRequest;
 import com.bbr.dto.RegisterRequest;
 import com.bbr.dto.UserResponse;
+import com.bbr.dto.VerifyOtpRequest;
 import com.bbr.entity.User;
 import com.bbr.repository.UserRepository;
 import com.bbr.security.JwtService;
@@ -28,11 +29,13 @@ public class AuthService {
 
     private final UserRepository users;
     private final PasswordEncoder encoder;
+    private final OtpService otp;
     private final JwtService jwt;
 
-    public AuthService(UserRepository users, PasswordEncoder encoder, JwtService jwt) {
+    public AuthService(UserRepository users, PasswordEncoder encoder, OtpService otp, JwtService jwt) {
         this.users = users;
         this.encoder = encoder;
+        this.otp = otp;
         this.jwt = jwt;
     }
 
@@ -47,8 +50,8 @@ public class AuthService {
         users.save(u);
     }
 
-    /** Email + password. If correct, make the JWT. */
-    public LoginResult login(LoginRequest req) {
+    /** Step 1: email + password. If correct, a 6-digit code goes to the email. */
+    public void login(LoginRequest req) {
         User u = users.findByEmail(req.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Wrong email or password"));
 
@@ -67,10 +70,19 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Wrong email or password");
         }
 
-        // Right password: clear the counter and make the JWT
+        // Right password: clear the counter and send the code
         u.setFailedLogins(0);
         u.setLockedUntil(null);
         users.save(u);
+        otp.sendCode(u.getEmail());
+    }
+
+    /** Step 2: the code. If correct, make the JWT. */
+    public LoginResult verifyOtp(VerifyOtpRequest req) {
+        if (!otp.verify(req.email(), req.code())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Wrong code");
+        }
+        User u = users.findByEmail(req.email()).orElseThrow();
         return new LoginResult(jwt.create(u), UserResponse.from(u));
     }
 }
