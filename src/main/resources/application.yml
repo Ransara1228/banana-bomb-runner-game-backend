@@ -20,10 +20,15 @@ spring:
     hibernate:
       ddl-auto: update
 
-  # Email (Gmail: turn on 2-Step Verification and make an App Password)
+  # Mail login comes from environment variables or from a .env file next to pom.xml.
+  # .env is in .gitignore, so the SMTP key never goes to GitHub. See .env.example.
+  config:
+    import: "optional:file:./.env[.properties]"
+
+  # Email (Brevo SMTP by default; Gmail works too with an App Password)
   mail:
-    host: smtp.gmail.com
-    port: 587
+    host: "${MAIL_HOST:smtp-relay.brevo.com}"
+    port: ${MAIL_PORT:587}
     username: "${MAIL_USER:}"
     password: "${MAIL_PASS:}"
     properties:
@@ -43,3 +48,7 @@ app:
   banana:
     url: https://marcconrad.com/uob/banana/api.php?out=json
     timeout-seconds: 5
+  mail:
+    from: "${MAIL_FROM:${spring.mail.username:}}"   # a sender address you verified in Brevo
+  otp:
+    log-code: true         # shows the OTP code in the console while testing. Set to false for the final version.
