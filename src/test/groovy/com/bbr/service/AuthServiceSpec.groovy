@@ -14,9 +14,10 @@ import java.time.Instant
 class AuthServiceSpec extends Specification {
 
     UserRepository users = Mock()
+    OtpService otp = Mock()
     JwtService jwt = Mock()
     BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(4)   // low strength = fast tests
-    AuthService service = new AuthService(users, encoder, jwt)
+    AuthService service = new AuthService(users, encoder, otp, jwt)
 
     def "register saves a BCrypt hash, not the password"() {
         given:
@@ -61,7 +62,7 @@ class AuthServiceSpec extends Specification {
         e.statusCode.value() == 401
         user.lockedUntil != null
         user.lockedUntil.isAfter(Instant.now().plusSeconds(290))
-        0 * jwt.create(_)
+        0 * otp.sendCode(_)
     }
 
     def "a locked account cannot log in even with the right password"() {
@@ -76,22 +77,20 @@ class AuthServiceSpec extends Specification {
         then:
         def e = thrown(ResponseStatusException)
         e.statusCode.value() == 429
-        0 * jwt.create(_)
+        0 * otp.sendCode(_)
     }
 
-    def "the right password clears the counter and gives a JWT"() {
+    def "the right password clears the counter and sends a code"() {
         given:
         def user = newUser("secret123")
         user.failedLogins = 3
         users.findByEmail("a@b.com") >> Optional.of(user)
 
         when:
-        def result = service.login(new LoginRequest("a@b.com", "secret123"))
+        service.login(new LoginRequest("a@b.com", "secret123"))
 
         then:
-        1 * jwt.create(user) >> "token-123"
-        result.token() == "token-123"
-        result.user().username() == "player1"
+        1 * otp.sendCode("a@b.com")
         user.failedLogins == 0
     }
 

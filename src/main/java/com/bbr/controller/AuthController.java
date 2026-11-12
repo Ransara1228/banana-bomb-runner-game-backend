@@ -33,8 +33,14 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public UserResponse login(@RequestBody LoginRequest req, HttpServletResponse res) {
-        AuthService.LoginResult result = auth.login(req);
+    public MessageResponse login(@RequestBody LoginRequest req) {
+        auth.login(req);
+        return new MessageResponse("Code sent to your email");
+    }
+
+    @PostMapping("/verify-otp")
+    public UserResponse verify(@RequestBody VerifyOtpRequest req, HttpServletResponse res) {
+        AuthService.LoginResult result = auth.verifyOtp(req);
         ResponseCookie cookie = ResponseCookie.from("token", result.token())
                 .httpOnly(true)          // JavaScript cannot read it (XSS safe)
                 .secure(secureCookie)    // true when the site runs on HTTPS
