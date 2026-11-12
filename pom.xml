@@ -11,7 +11,7 @@
     </parent>
     <groupId>com.bbr</groupId>
     <artifactId>backend</artifactId>
-    <version>1.0.0</version>
+    <version>2.0.0</version>
     <name>banana-bomb-runner-backend</name>
     <properties>
         <java.version>21</java.version>
