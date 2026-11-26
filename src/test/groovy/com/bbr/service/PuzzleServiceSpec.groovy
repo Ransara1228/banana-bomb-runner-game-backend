@@ -11,7 +11,7 @@ class PuzzleServiceSpec extends Specification {
 
     BananaClient banana = Mock()
     ProgressService progress = Mock()
-    PuzzleService service = new PuzzleService(banana, new LevelService(), progress)
+    PuzzleService service = new PuzzleService(banana, new LevelService(), new AccessPolicy(progress), progress)
 
     def "a new puzzle sends the image and the time, never the solution"() {
         given:
@@ -114,5 +114,45 @@ class PuzzleServiceSpec extends Specification {
         then:
         def e = thrown(ResponseStatusException)
         e.statusCode.value() == 503
+    }
+
+    def "a guest can solve a free level but nothing is saved"() {
+        given:
+        banana.fetch() >> new BananaClient.BananaPuzzle("img", 7)
+        def p = service.newPuzzle(null, 2)
+
+        when:
+        def r = service.answer(null, new AnswerRequest(p.puzzleId(), 7))
+
+        then:
+        r.correct()
+        r.bonus() == 200 * 2 + 20 * p.timeLimit()
+        r.highestLevel() == AccessPolicy.FREE_LEVELS
+        0 * progress._                       // no progress is read or saved for a guest
+    }
+
+    def "a guest cannot get a puzzle for level 3"() {
+        when:
+        service.newPuzzle(null, 3)
+
+        then:
+        def e = thrown(ResponseStatusException)
+        e.statusCode.value() == 401
+        0 * banana.fetch()
+        0 * progress._
+    }
+
+    def "a player cannot answer a guest's puzzle"() {
+        given:
+        banana.fetch() >> new BananaClient.BananaPuzzle("img", 7)
+        def p = service.newPuzzle(null, 1)
+
+        when:
+        service.answer(1L, new AnswerRequest(p.puzzleId(), 7))
+
+        then:
+        def e = thrown(ResponseStatusException)
+        e.statusCode.value() == 404
+        0 * progress.unlockNext(_, _)
     }
 }

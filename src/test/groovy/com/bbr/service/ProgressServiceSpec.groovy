@@ -64,6 +64,44 @@ class ProgressServiceSpec extends Specification {
         e.statusCode.value() == 403
     }
 
+    def "a player can play the free levels before unlocking them"() {
+        given:
+        users.findById(1L) >> Optional.of(user(1))
+
+        when:
+        service.checkUnlocked(1L, 2)
+
+        then:
+        noExceptionThrown()
+    }
+
+    def "finishing free level 2 unlocks level 3 even from level 1"() {
+        given:
+        def u = user(1)
+        users.findById(1L) >> Optional.of(u)
+
+        when:
+        def r = service.unlockNext(1L, 2)
+
+        then:
+        r.highestLevel() == 3
+        1 * users.save(u)
+        1 * events.publishEvent({ it instanceof LevelUnlockedEvent && it.newLevel() == 3 })
+    }
+
+    def "a locked level cannot be finished"() {
+        given:
+        users.findById(1L) >> Optional.of(user(1))
+
+        when:
+        service.unlockNext(1L, 4)
+
+        then:
+        def e = thrown(ResponseStatusException)
+        e.statusCode.value() == 403
+        0 * users.save(_)
+    }
+
     private static User user(int highestLevel) {
         def u = new User()
         u.username = "player1"
