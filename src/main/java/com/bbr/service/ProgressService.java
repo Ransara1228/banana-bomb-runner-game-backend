@@ -26,9 +26,9 @@ public class ProgressService {
         return UserResponse.from(find(userId));
     }
 
-    /** Authorization: a logged-in user can only play levels they have unlocked. */
+    /** Authorization: a logged-in user can play the free levels and the levels they have unlocked. */
     public void checkUnlocked(Long userId, int level) {
-        if (level > find(userId).getHighestLevel()) {
+        if (level > find(userId).getHighestLevel() && !AccessPolicy.isFree(level)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Level locked");
         }
     }
@@ -36,10 +36,10 @@ public class ProgressService {
     /** Only the gate puzzle calls this, after a correct answer. The browser cannot unlock levels. */
     public UserResponse unlockNext(Long userId, int level) {
         User u = find(userId);
-        if (level > u.getHighestLevel()) {
+        if (level > u.getHighestLevel() && !AccessPolicy.isFree(level)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Level locked");
         }
-        if (level == u.getHighestLevel() && level < levels.count()) {
+        if (level >= u.getHighestLevel() && level < levels.count()) {   // a free level can be ahead of the highest one
             u.setHighestLevel(level + 1);
             users.save(u);
             events.publishEvent(new LevelUnlockedEvent(userId, level + 1));   // listeners react (history)
