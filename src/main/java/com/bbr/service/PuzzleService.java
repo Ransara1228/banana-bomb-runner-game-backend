@@ -13,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,18 +28,21 @@ public class PuzzleService {
 
     private final BananaClient banana;
     private final LevelService levels;
+    private final AccessPolicy access;
     private final ProgressService progress;
     private final Map<String, Pending> pending = new ConcurrentHashMap<>();   // puzzleId -> puzzle
 
-    public PuzzleService(BananaClient banana, LevelService levels, ProgressService progress) {
+    public PuzzleService(BananaClient banana, LevelService levels, AccessPolicy access, ProgressService progress) {
         this.banana = banana;
         this.levels = levels;
+        this.access = access;
         this.progress = progress;
     }
 
+    /** userId is null for a guest: AccessPolicy lets a guest play only the free levels. */
     public PuzzleResponse newPuzzle(Long userId, int level) {
         LevelDto lv = levels.get(level);
-        progress.checkUnlocked(userId, level);
+        access.checkCanPlay(userId, level);   // authorization: 401 for a guest on level 3+, 403 for a locked level
         pending.values().removeIf(p -> p.deadline().isBefore(Instant.now().minusSeconds(60)));   // old, unanswered
         BananaClient.BananaPuzzle b = banana.fetch();
         String id = UUID.randomUUID().toString();
@@ -49,18 +53,25 @@ public class PuzzleService {
 
     public AnswerResponse answer(Long userId, AnswerRequest req) {
         Pending p = pending.remove(req.puzzleId());          // each puzzle can be answered once
-        if (p == null || !p.userId().equals(userId)) {
+        if (p == null || !Objects.equals(p.userId(), userId)) {   // only the same player (or guest) can answer
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Puzzle not found");
         }
         long left = Duration.between(Instant.now(), p.deadline()).toSeconds();   // includes the extra seconds
         boolean timeUp = left < 0;
         boolean correct = !timeUp && p.solution() == req.answer();
         if (!correct) {
-            return new AnswerResponse(false, timeUp, 0, progress.get(userId).highestLevel());
+            return new AnswerResponse(false, timeUp, 0, highestLevel(userId));
         }
         int secondsLeft = (int) Math.min(Math.max(left, 0), p.seconds());
         int bonus = 200 * p.level() + 20 * secondsLeft;
+        if (userId == null) {
+            return new AnswerResponse(true, false, bonus, AccessPolicy.FREE_LEVELS);   // guest: nothing is saved
+        }
         UserResponse u = progress.unlockNext(userId, p.level());   // the server unlocks, not the browser
         return new AnswerResponse(true, false, bonus, u.highestLevel());
+    }
+
+    private int highestLevel(Long userId) {
+        return userId == null ? AccessPolicy.FREE_LEVELS : progress.get(userId).highestLevel();
     }
 }
