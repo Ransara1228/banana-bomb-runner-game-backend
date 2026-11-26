@@ -13,7 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-/** Runs before every /api request and checks the JWT cookie. */
+/** Runs before every /api request and checks the JWT cookie (authentication). */
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
@@ -32,6 +32,11 @@ public class JwtFilter extends OncePerRequestFilter {
                 || path.equals("/api/leaderboard");
     }
 
+    /** Guests may use these without logging in. AccessPolicy then allows them only the free levels. */
+    private static boolean guestAllowed(String path) {
+        return path.startsWith("/api/puzzle");
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
             throws ServletException, IOException {
@@ -41,16 +46,21 @@ public class JwtFilter extends OncePerRequestFilter {
                 if ("token".equals(c.getName())) token = c.getValue();
             }
         }
-        Long userId;
+        Long userId = null;
         try {
             userId = jwt.userId(token);
         } catch (Exception e) {
-            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            res.setContentType("application/json");
-            res.getWriter().write("{\"message\":\"Please log in\"}");
-            return;
+            if (!guestAllowed(req.getRequestURI())) {
+                res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                res.setContentType("application/json");
+                res.getWriter().write("{\"message\":\"Please log in\"}");
+                return;
+            }
+            // no cookie (or an old one) on a guest path: carry on as a guest, without a userId
         }
-        req.setAttribute("userId", userId);   // controllers read it with @RequestAttribute
+        if (userId != null) {
+            req.setAttribute("userId", userId);   // controllers read it with @RequestAttribute
+        }
         chain.doFilter(req, res);
     }
 }

@@ -7,6 +7,7 @@ import com.bbr.service.PuzzleService;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
+/** Gate puzzles. Guests (no userId) may play levels 1-2; AccessPolicy checks the rest. */
 @RestController
 @RequestMapping("/api/puzzle")
 public class PuzzleController {
@@ -18,12 +19,12 @@ public class PuzzleController {
     }
 
     @GetMapping
-    public PuzzleResponse newPuzzle(@RequestAttribute("userId") Long userId, @RequestParam("level") int level) {
+    public PuzzleResponse newPuzzle(@RequestAttribute(value = "userId", required = false) Long userId, @RequestParam("level") int level) {
         return puzzles.newPuzzle(userId, level);
     }
 
     @PostMapping("/answer")
-    public AnswerResponse answer(@RequestAttribute("userId") Long userId, @Valid @RequestBody AnswerRequest req) {
+    public AnswerResponse answer(@RequestAttribute(value = "userId", required = false) Long userId, @Valid @RequestBody AnswerRequest req) {
         return puzzles.answer(userId, req);
     }
 }
